@@ -8,6 +8,4 @@
             return application.protected.shieldLastRun;
         }
     }
-    ```
-    **Key:** Cleaner and easier to read code.
 
