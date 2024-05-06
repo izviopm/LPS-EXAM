@@ -63,7 +63,7 @@ Console.WriteLine(Laptop.Os); // Laptop os: macOs
 **Key:** modifications by using private members.
 
 ```csharp
-// Solution
+// Solution 1
 class Laptop
 {
     private string _os;
@@ -94,12 +94,98 @@ Console.WriteLine(Laptop.Os);
 ```
 Analysis of the first solution:
 - The Os property was changed to become a private member (_os).
-- To prevent direct modifications from outside the class, we eliminated the public setter function for Os.
-- To provide external access to the value of Os, we introduced a public getter function called GetOs().
+- To prevent direct modifications from outside the class, I removed Os public setter method.
+- To provide external access to the value of Os, I introduced GetOs(), a public getter method.
 - The value supplied as a parameter is used to initialize the private member _os in the constructor.
 
 With these modifications, the Os property can only be accessed through the GetOs() method, and its value cannot be modified directly. This ensures better encapsulation and control over the class's internal state.
 
 However, it's worth noting that in a real-world scenario, using properties with private setters and public getters (read-only properties) might be a more common and idiomatic approach. If that's the case, the Laptop class would look like the second solution. In this version, the Os property has a private setter, making it read-only. The value can still be set in the constructor, but it cannot be modified thereafter.
 
+### 4. How about your opinion..?
 
+```csharp
+using System; 
+using System.Collections.Generic;
+
+namespace MemoryLeakExample 
+{ 
+    class Program 
+    { 
+        static void Main(string[] args) 
+        { 
+            var myList = new List(); 
+            while (true) 
+            { 
+                // populate list with 1000 integers 
+                for (int i = 0; i < 1000; i++) 
+                { 
+                    myList.Add(new Product(Guid.NewGuid().ToString(), i)); 
+                } 
+                // do something with the list object 
+                Console.WriteLine(myList.Count); 
+            }
+        } 
+    } 
+    
+    class Product 
+    { 
+        public Product(string sku, decimal price) 
+        { 
+            SKU = sku; 
+            Price = price; 
+        } 
+
+        public string SKU { get; set; } 
+        public decimal Price { get; set; } 
+    } 
+}
+```
+**Key:** modifications by using private members.
+
+```csharp
+// Solution
+using System;
+using System.Collections.Generic;
+
+namespace MemoryLeakExample
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            while (true)
+            {
+                var myList = new List<Product>(); // Create a new list in each iteration
+
+                // populate list with 1000 integers
+                for (int i = 0; i < 1000; i++)
+                {
+                    myList.Add(new Product(Guid.NewGuid().ToString(), i));
+                }
+
+                // do something with the list object
+                Console.WriteLine(myList.Count);
+
+                myList.Clear(); // Clear the list to release memory
+            }
+        }
+    }
+
+    class Product
+    {
+        public Product(string sku, decimal price)
+        {
+            SKU = sku;
+            Price = price;
+        }
+
+        public string SKU { get; set; }
+        public decimal Price { get; set; }
+    }
+}
+```
+In the revised code;
+- I made sure to create a list named myList inside the while loop, for each iteration.
+- Once I finish using myList I use the Clear() method to empty the list and free up the memory allocated to its objects.
+Clearing the list at the end of each loop prevents a buildup of objects, in memory effectively resolving the memory leak problem.
