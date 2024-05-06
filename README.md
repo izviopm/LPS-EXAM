@@ -1,5 +1,5 @@
 # A. Logical and Review Code
-## 1. How about your opinion..?
+#### 1. How about your opinion..?
 ```csharp
 if (application != null)
 {
@@ -17,7 +17,7 @@ return application?.protected?.shieldLastRun;
 ```
 The updated code accomplishes the tasks, as the code. It verifies if the application exists then confirms if application.protected exists. Ultimately retrieves application.protected.shieldLastRun. In case any of the objects, in this process are null it will smoothly return null without triggering a NullReferenceException. This enhances the clarity and brevity of the code making it easier to read.
 
-## 2. How about your opinion..?
+### 2. How about your opinion..?
 ```csharp
 public ApplicationInfo GetInfo()
 {
@@ -46,7 +46,7 @@ public (string Path, string Name) GetInfo()
 ```
 The solution mentioned earlier enables a function to provide two results in a tuple that includes the Path and Name. 
 
-## 3. How about your opinion..?
+### 3. How about your opinion..?
 
 ```csharp
 class Laptop
