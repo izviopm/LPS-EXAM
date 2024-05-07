@@ -189,3 +189,309 @@ In the revised code;
 - I made sure to create a list named myList inside the while loop, for each iteration.
 - Once I finish using myList I use the Clear() method to empty the list and free up the memory allocated to its objects.
 Clearing the list at the end of each loop prevents a buildup of objects, in memory effectively resolving the memory leak problem.
+
+### 5. How about your opinion..?
+
+```csharp
+using System; 
+namespace MemoryLeakExample 
+{ 
+    class Program 
+    { 
+        static void Main(string[] args) 
+        { 
+            var publisher = new EventPublisher(); 
+            while (true) 
+            { 
+                var subscriber = new EventSubscriber(publisher); 
+                // do something with the publisher and subscriber objects 
+            } 
+        } 
+        
+        class EventPublisher 
+        { 
+            public event EventHandler MyEvent; 
+            public void RaiseEvent() 
+            { 
+                MyEvent?.Invoke(this, EventArgs.Empty); 
+            } 
+        } 
+        
+        class EventSubscriber 
+        { 
+            public EventSubscriber(EventPublisher publisher) 
+            { 
+                publisher.MyEvent += OnMyEvent; 
+            } 
+
+            private void OnMyEvent(object sender, EventArgs e) 
+            { 
+                Console.WriteLine("MyEvent raised"); 
+            } 
+        } 
+    } 
+} 
+```
+**Key:** event handlers.
+
+```csharp
+// Solution
+using System;
+
+namespace MemoryLeakExample
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var publisher = new EventPublisher();
+            while (true)
+            {
+                using (var subscriber = new EventSubscriber(publisher))
+                {
+                    // do something with the publisher and subscriber objects 
+                }
+            }
+        }
+    }
+
+    class EventPublisher
+    {
+        public event EventHandler MyEvent;
+
+        public void RaiseEvent()
+        {
+            MyEvent?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    class EventSubscriber : IDisposable
+    {
+        private readonly EventPublisher _publisher;
+
+        public EventSubscriber(EventPublisher publisher)
+        {
+            _publisher = publisher;
+            _publisher.MyEvent += OnMyEvent;
+        }
+
+        private void OnMyEvent(object sender, EventArgs e)
+        {
+            Console.WriteLine("MyEvent raised");
+        }
+
+        public void Dispose()
+        {
+            _publisher.MyEvent -= OnMyEvent; // Unsubscribe from the event
+        }
+    }
+}
+```
+In this corrected code:
+- I've updated the EventSubscriber class to include the IDisposable interface.
+- In the Main method, I've added a using statement around the EventSubscriber object instantiation. This makes sure that when the EventSubscriber object exits scope, the Dispose() method is performed automatically.
+- The EventSubscriber class's dispose() method releases the reference to the EventSubscriber object and permits it to be garbage collected by unsubscribing from the EventPublisher's MyEvent event.
+
+### 6. How about your opinion..?
+
+```csharp
+using System; 
+using System.Collections.Generic; 
+namespace MemoryLeakExample 
+{ 
+    class Program 
+    { 
+        static void Main(string[] args) 
+        { 
+            var rootNode = new TreeNode(); 
+            while (true) 
+            { 
+                // create a new subtree of 10000 nodes 
+                var newNode = new TreeNode(); 
+                for (int i = 0; i < 10000; i++) 
+                { 
+                    var childNode = new TreeNode(); 
+                    newNode.AddChild(childNode); 
+                } 
+                rootNode.AddChild(newNode); 
+            } 
+        } 
+    } 
+
+    class TreeNode 
+    { 
+        private readonly List<TreeNode> _children = new List<TreeNode>(); 
+        public void AddChild(TreeNode child) 
+        { 
+            _children.Add(child); 
+        } 
+    } 
+}
+```
+**Key:** Large object graphs.
+
+```csharp
+// Solution
+using System;
+using System.Collections.Generic;
+
+namespace MemoryLeakExample
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            var rootNode = new TreeNode();
+            while (true)
+            {
+                // Create a new subtree of 10000 nodes
+                var newNode = new TreeNode();
+                for (int i = 0; i < 10000; i++)
+                {
+                    var childNode = new TreeNode();
+                    newNode.AddChild(childNode);
+                }
+                rootNode.AddChild(newNode);
+
+                // Prune old subtrees if the number of children exceeds a threshold
+                if (rootNode.ChildCount > 100)
+                {
+                    rootNode.PruneOldSubtrees();
+                }
+            }
+        }
+    }
+
+    class TreeNode
+    {
+        private readonly List<TreeNode> _children = new List<TreeNode>();
+
+        public int ChildCount => _children.Count;
+
+        public void AddChild(TreeNode child)
+        {
+            _children.Add(child);
+        }
+
+        public void PruneOldSubtrees()
+        {
+            // Prune old subtrees by removing the first 50% of children
+            int pruneCount = _children.Count / 2;
+            _children.RemoveRange(0, pruneCount);
+        }
+    }
+}
+```
+In this corrected code:
+- I modified the TreeNode class to include a function called PruneOldSubtrees() that eliminates outdated subtrees from the children list.
+- In the Main method, I determine whether the number of children in the new subtree surpasses a predetermined threshold (e.g., 100) after adding it to the root node. I remove outdated subtrees from the root node if it happens.
+- The PruneOldSubtrees() function effectively prunes old subtrees and frees up memory by removing the first 50% of children from the _children list.
+By preventing the growth of a big object graph, this basic pruning mechanism helps to mitigate the memory leak problem.
+
+### 7. How about your opinion..?
+
+```csharp
+using System; 
+using System.Collections.Generic; 
+
+class Cache 
+{ 
+    private static Dictionary<int, object> _cache = new Dictionary<int, object>(); 
+    public static void Add(int key, object value) 
+    { 
+        _cache.Add(key, value); 
+    } 
+
+    public static object Get(int key) 
+    { 
+        return _cache[key]; 
+    } 
+} 
+
+class Program 
+{ 
+    static void Main(string[] args) 
+    { 
+        for (int i = 0; i < 1000000; i++) 
+        { 
+            Cache.Add(i, new object()); 
+        }
+        Console.WriteLine("Cache populated"); 
+        Console.ReadLine(); 
+    } 
+}
+```
+**Key:** Improper caching
+
+```csharp
+// Solution
+using System;
+using System.Collections.Generic;
+
+class LRUCache<TKey, TValue>
+{
+    private readonly int _capacity;
+    private readonly Dictionary<TKey, LinkedListNode<(TKey Key, TValue Value)>> _cacheMap;
+    private readonly LinkedList<(TKey Key, TValue Value)> _cacheList;
+
+    public LRUCache(int capacity)
+    {
+        _capacity = capacity;
+        _cacheMap = new Dictionary<TKey, LinkedListNode<(TKey, TValue)>>();
+        _cacheList = new LinkedList<(TKey, TValue)>();
+    }
+
+    public void Add(TKey key, TValue value)
+    {
+        if (_cacheMap.ContainsKey(key))
+        {
+            _cacheList.Remove(_cacheMap[key]);
+        }
+        else if (_cacheList.Count >= _capacity)
+        {
+            var nodeToRemove = _cacheList.Last;
+            _cacheList.RemoveLast();
+            _cacheMap.Remove(nodeToRemove.Value.Key);
+        }
+
+        var newNode = _cacheList.AddFirst((key, value));
+        _cacheMap[key] = newNode;
+    }
+
+    public bool TryGet(TKey key, out TValue value)
+    {
+        if (_cacheMap.TryGetValue(key, out var node))
+        {
+            _cacheList.Remove(node);
+            _cacheList.AddFirst(node);
+            value = node.Value.Value;
+            return true;
+        }
+
+        value = default;
+        return false;
+    }
+}
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        LRUCache<int, object> cache = new LRUCache<int, object>(1000);
+
+        for (int i = 0; i < 1000000; i++)
+        {
+            cache.Add(i, new object());
+        }
+
+        Console.WriteLine("Cache populated");
+        Console.ReadLine();
+    }
+}
+```
+In this corrected code:
+- I've created a generic key and value type LRU cache (LRUCache) class.
+- The LRUCache class tracks the order of access using a LinkedList (_cacheList) and stores key-value pairs in a Dictionary (_cacheMap).
+- I make sure the cache hasn't filled up before adding a new item (Add method). If that's the case, I add the new item after removing the least recently used one.
+- I move the accessible item to the front of the list to adjust the order of access when I retrieve an item from the cache (TryGet method).
+- This LRU cache implementation prevents excessive memory usage by making sure the cache doesn't grow infinitely and by evicting old items to create place for new ones.
